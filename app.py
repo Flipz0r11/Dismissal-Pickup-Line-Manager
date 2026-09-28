@@ -5,8 +5,8 @@ import streamlit as st
 st.set_page_config(page_title="School Pickup Manager", layout="wide")
 
 # Load student roster from CSV file
-if os.path.exists("students.csv"):
-  df_students = pd.read_csv("students.csv")
+if os.path.exists("Students.csv"):
+  df_students = pd.read_csv("Students.csv")
   # Uses the first column in your CSV regardless of header name
   STUDENT_ROSTER = sorted(df_students.iloc[:, 0].dropna().astype(str).tolist())
 else:
