@@ -4,21 +4,14 @@ import streamlit as st
 
 st.set_page_config(page_title="School Pickup Manager", layout="wide")
 
-# Student Roster for Autocomplete / Selection
-STUDENT_ROSTER = [
-    "Alex Johnson",
-    "Bella Smith",
-    "Charlie Brown",
-    "Daisy Miller",
-    "Ethan Davis",
-    "Fiona Wilson",
-    "George Clark",
-    "Hannah Martinez",
-    "Ian Thompson",
-    "Julia Roberts",
-    "Kevin White",
-    "Laura Hall",
-]
+# Load student roster from CSV file
+if os.path.exists("students.csv"):
+  df_students = pd.read_csv("students.csv")
+  # Uses the first column in your CSV regardless of header name
+  STUDENT_ROSTER = sorted(df_students.iloc[:, 0].dropna().astype(str).tolist())
+else:
+  # Fallback list if file isn't uploaded yet
+  STUDENT_ROSTER = ["Sample Student 1", "Sample Student 2"]
 
 # Initialize Shared State across all users
 if "spots" not in st.session_state:
