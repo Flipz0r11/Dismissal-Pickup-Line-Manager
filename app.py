@@ -3,103 +3,119 @@ import os
 import pandas as pd
 import streamlit as st
 
-st.set_page_config(page_title="School Pickup Manager", layout="wide")
+st.set_page_config(
+    page_title="Pickup Line",
+    layout="wide",
+    initial_sidebar_state="collapsed",
+)
 
-# Load student roster from CSV file (case-insensitive check for filename)
+# Resilient CSV Loader
 csv_filename = "Students.csv" if os.path.exists("Students.csv") else "students.csv"
+STUDENT_ROSTER = []
 
 if os.path.exists(csv_filename):
-    # Try reading with utf-8 first, fallback to cp1252/latin1 if encoded differently
-    for encoding in ['utf-8', 'cp1252', 'latin1', 'iso-8859-1']:
-        try:
-            df_students = pd.read_csv(csv_filename, encoding=encoding)
-            STUDENT_ROSTER = sorted(df_students.iloc[:, 0].dropna().astype(str).str.strip().tolist())
-            break
-        except (UnicodeDecodeError, Exception):
-            continue
-    else:
-        st.error("Could not read `Students.csv` with standard text encodings.")
-        STUDENT_ROSTER = []
-else:
-    STUDENT_ROSTER = ["Sample Student A", "Sample Student B"]
-    st.warning("`Students.csv` not found in repository. Using sample roster.")
-    
-# Initialize Shared State across all users
+  for encoding in ["utf-8", "cp1252", "latin1", "iso-8859-1"]:
+    try:
+      df_students = pd.read_csv(csv_filename, encoding=encoding)
+      STUDENT_ROSTER = sorted(
+          df_students.iloc[:, 0].dropna().astype(str).str.strip().tolist()
+      )
+      break
+    except Exception:
+      continue
+
+if not STUDENT_ROSTER:
+  STUDENT_ROSTER = ["Sample Student A", "Sample Student B"]
+
+# Initialize Session States
 if "spots" not in st.session_state:
-    st.session_state.spots = {i: "" for i in range(1, 9)}
+  st.session_state.spots = {i: "" for i in range(1, 9)}
 
 if "pickup_log" not in st.session_state:
-    st.session_state.pickup_log = []
+  st.session_state.pickup_log = []
 
-st.title("🚗 School Dismissal Pickup Line Manager")
-st.write("Live status for Spots 1–8. Updates are visible to all staff.")
+# Header
+st.markdown(
+    "### 🚗 School Pickup Line Manager", unsafe_allow_html=True
+)
 
-col_left, col_right = st.columns([2, 1])
+# Render 8 Spots in a compact 2-column layout (4 rows of 2 spots)
+grid = [st.columns(2) for _ in range(4)]
 
-with col_left:
-    st.subheader("Pickup Spots (1–8)")
-    
-    # Render Spots in 2 columns of 4
-    grid_col1, grid_col2 = st.columns(2)
-    
-    for spot_num in range(1, 9):
-        target_col = grid_col1 if spot_num <= 4 else grid_col2
-        
-        with target_col:
-            st.markdown(f"### Spot {spot_num}")
-            current_student = st.session_state.spots[spot_num]
-            
-            if current_student:
-                st.info(f"**Current Student:** {current_student}")
-                if st.button(f"Dismiss Spot {spot_num}", key=f"dismiss_{spot_num}", type="primary"):
-                    timestamp = datetime.datetime.now().strftime("%I:%M:%S %p")
-                    st.session_state.pickup_log.insert(0, {
-                        "Spot": f"Spot {spot_num}",
-                        "Student": current_student,
-                        "Time": timestamp
-                    })
-                    st.session_state.spots[spot_num] = ""
-                    st.rerun()
-            else:
-                selected_name = st.selectbox(
-                    f"Select student for Spot {spot_num}",
-                    options=[""] + STUDENT_ROSTER,
-                    key=f"select_{spot_num}",
-                    label_visibility="collapsed"
-                )
-                if selected_name:
-                    st.session_state.spots[spot_num] = selected_name
-                    st.rerun()
-            st.divider()
+for index in range(8):
+  spot_num = index + 1
+  row_idx = index // 2
+  col_idx = index % 2
 
-with col_right:
-    st.subheader("📋 Today's Pickup Log")
-    
-    # Control buttons row
-    btn_col1, btn_col2 = st.columns(2)
-    with btn_col1:
-        if st.button("Refresh Live Data", use_container_width=True):
-            st.rerun()
-            
-    with btn_col2:
-        if st.button("Clear Log", type="secondary", use_container_width=True, disabled=len(st.session_state.pickup_log) == 0):
-            st.session_state.pickup_log = []
-            st.rerun()
-            
-    st.write("") # Spacing
+  with grid[row_idx][col_idx]:
+    with st.container(border=True):
+      current_student = st.session_state.spots[spot_num]
 
-    if st.session_state.pickup_log:
-        df_log = pd.DataFrame(st.session_state.pickup_log)
-        st.dataframe(df_log, use_container_width=True, hide_index=True)
-        
-        # Download button for attendance records
-        csv_data = df_log.to_csv(index=False).encode('utf-8')
-        st.download_button(
-            label="Download Log (CSV)",
-            data=csv_data,
-            file_name=f"pickup_log_{datetime.date.today()}.csv",
-            mime="text/csv",
-            use_container_width=True
+      if current_student:
+        st.markdown(
+            f"**Spot {spot_num}:** {current_student}",
+            unsafe_allow_html=True,
         )
-    else:
-        st.write("No pickups recorded yet today.")
+        if st.button(
+            f"✓ Picked Up",
+            key=f"dismiss_{spot_num}",
+            type="primary",
+            use_container_width=True,
+        ):
+          timestamp = datetime.datetime.now().strftime("%I:%M:%S %p")
+          st.session_state.pickup_log.insert(
+              0,
+              {
+                  "Spot": f"Spot {spot_num}",
+                  "Student": current_student,
+                  "Time": timestamp,
+              },
+          )
+          st.session_state.spots[spot_num] = ""
+          st.rerun()
+      else:
+        st.caption(f"**Spot {spot_num}**")
+        selected_name = st.selectbox(
+            f"Spot {spot_num}",
+            options=["-- Select --"] + STUDENT_ROSTER,
+            key=f"select_{spot_num}",
+            label_visibility="collapsed",
+        )
+        if selected_name and selected_name != "-- Select --":
+          st.session_state.spots[spot_num] = selected_name
+          st.rerun()
+
+st.divider()
+
+# Collapsible Bottom Panel for Pickup Log & Controls
+with st.expander(
+    f"📋 Today's Pickup Log ({len(st.session_state.pickup_log)} Picked Up)"
+):
+  col_refresh, col_clear = st.columns(2)
+  with col_refresh:
+    if st.button("Refresh", use_container_width=True):
+      st.rerun()
+  with col_clear:
+    if st.button(
+        "Clear Log",
+        type="secondary",
+        use_container_width=True,
+        disabled=len(st.session_state.pickup_log) == 0,
+    ):
+      st.session_state.pickup_log = []
+      st.rerun()
+
+  if st.session_state.pickup_log:
+    df_log = pd.DataFrame(st.session_state.pickup_log)
+    st.dataframe(df_log, use_container_width=True, hide_index=True)
+
+    csv_data = df_log.to_csv(index=False).encode("utf-8")
+    st.download_button(
+        label="Download Log (CSV)",
+        data=csv_data,
+        file_name=f"pickup_log_{datetime.date.today()}.csv",
+        mime="text/csv",
+        use_container_width=True,
+    )
+  else:
+    st.info("No pickups recorded yet today.")
