@@ -36,7 +36,7 @@ if "pickup_log" not in st.session_state:
 
 # Header
 st.markdown(
-    "### 🚗 School Pickup Line Manager", unsafe_allow_html=True
+    "### 🚗 VCA Carpool", unsafe_allow_html=True
 )
 
 # Render 8 Spots in a compact 2-column layout (4 rows of 2 spots)
