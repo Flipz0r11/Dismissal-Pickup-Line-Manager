@@ -9,18 +9,21 @@ st.set_page_config(page_title="School Pickup Manager", layout="wide")
 csv_filename = "Students.csv" if os.path.exists("Students.csv") else "students.csv"
 
 if os.path.exists(csv_filename):
-    try:
-        df_students = pd.read_csv(csv_filename)
-        # Grab the first column, drop empty rows, convert to string and sort
-        STUDENT_ROSTER = sorted(df_students.iloc[:, 0].dropna().astype(str).str.strip().tolist())
-    except Exception as e:
-        st.error(f"Error reading CSV file: {e}")
+    # Try reading with utf-8 first, fallback to cp1252/latin1 if encoded differently
+    for encoding in ['utf-8', 'cp1252', 'latin1', 'iso-8859-1']:
+        try:
+            df_students = pd.read_csv(csv_filename, encoding=encoding)
+            STUDENT_ROSTER = sorted(df_students.iloc[:, 0].dropna().astype(str).str.strip().tolist())
+            break
+        except (UnicodeDecodeError, Exception):
+            continue
+    else:
+        st.error("Could not read `Students.csv` with standard text encodings.")
         STUDENT_ROSTER = []
 else:
-    # Fallback list if CSV isn't found
-    STUDENT_ROSTER = ["Sample Student A", "Sample Student B", "Sample Student C"]
+    STUDENT_ROSTER = ["Sample Student A", "Sample Student B"]
     st.warning("`Students.csv` not found in repository. Using sample roster.")
-
+    
 # Initialize Shared State across all users
 if "spots" not in st.session_state:
     st.session_state.spots = {i: "" for i in range(1, 9)}
